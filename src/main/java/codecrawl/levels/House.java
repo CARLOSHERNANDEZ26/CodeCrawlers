@@ -1,11 +1,14 @@
 package codecrawl.levels;
 
 import codecrawl.core.MainFrame;
+import codecrawl.core.UserSession;
+import codecrawl.engine.MascotManager;
 import codecrawl.ui.MuteButton;
 import codecrawl.ui.NavButton; 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
@@ -21,33 +24,49 @@ public class House extends StackPane {
     public House(MainFrame mainApp) {
         this.mainApp = mainApp;
 
-        // 1. CLEAN BACKGROUND (No more stretched icons!)
-        this.setStyle("-fx-background-color: linear-gradient(to bottom right, #2b1d3d, #120b1c);");
+        // 1. CLEAN BACKGROUND
+        this.setStyle("-fx-background-color: linear-gradient(to bottom right, #1e112a, #0a0512);");
 
-        // 2. THE TOOLBAR (WITH CLICK FIX)
+        // 2. THE NAVIGATION & AUDIO TOOLBAR WITH INVISIBLE SHIELD FIX
         NavButton leaveMapBtn = new NavButton("← LEAVE HOUSE", this, () -> mainApp.showWorldSelection());
         HBox toolbar = new HBox(15, leaveMapBtn, new MuteButton());
         toolbar.setAlignment(Pos.TOP_RIGHT);
         toolbar.setPadding(new Insets(20));
-        
-        // CRITICAL FIX: Allows clicks to pass through the empty space of the toolbar to the buttons below!
         toolbar.setPickOnBounds(false); 
 
-        // 3. LAYOUT CONTAINER
-        VBox layout = new VBox(20); // Tighter spacing
-        layout.setAlignment(Pos.CENTER);
+        // 3. NEW: TOP LEFT LIVE ACCOUNT LEVEL BADGE
+        String username = UserSession.getUsername() != null ? UserSession.getUsername() : "RoneloLolz";
+        Label playerBadge = new Label("👤 " + username + " | Lvl " + UserSession.getLevel());
+        playerBadge.setStyle("-fx-background-color: rgba(0,0,0,0.65); -fx-text-fill: white; -fx-padding: 10 20; -fx-background-radius: 20; -fx-border-color: #89C765; -fx-border-radius: 20; -fx-border-width: 1.5;");
+        playerBadge.setFont(Font.font("Arial", FontWeight.BOLD, 15));
         
-        // CRITICAL FIX: Ensure the layout also lets clicks pass through if it overlaps
+        HBox leftToolbar = new HBox(playerBadge);
+        leftToolbar.setAlignment(Pos.TOP_LEFT);
+        leftToolbar.setPadding(new Insets(20));
+        leftToolbar.setPickOnBounds(false);
+
+        // 4. MAIN INTERFACE MENU CONTAINER
+        VBox layout = new VBox(20); 
+        layout.setAlignment(Pos.CENTER);
         layout.setPickOnBounds(false);
 
-        // 4. USE THE HOUSE ICON AS A LOGO INSTEAD OF A BACKGROUND
+        // ─── UPGRADED: LOADS EQUIPPED PET DYNAMICALLY IN THE COUCH SLOT ───
         try {
-            ImageView houseIcon = new ImageView(new Image(getClass().getResource("/house.png").toExternalForm()));
-            houseIcon.setFitWidth(180);
-            houseIcon.setPreserveRatio(true);
-            layout.getChildren().add(houseIcon); // Add logo to the top of the menu
+            String activeMascotPath = MascotManager.getCurrentMascotPath(true); // Loads idle state asset file
+            ImageView mascotAvatar = new ImageView(new Image(getClass().getResource(activeMascotPath).toExternalForm()));
+            mascotAvatar.setFitWidth(150);
+            mascotAvatar.setPreserveRatio(true);
+            layout.getChildren().add(mascotAvatar); 
         } catch (Exception e) {
-            System.err.println("House icon missing!");
+            // Fallback to house graphic asset if resource files fail
+            try {
+                ImageView houseIcon = new ImageView(new Image(getClass().getResource("/house.png").toExternalForm()));
+                houseIcon.setFitWidth(160);
+                houseIcon.setPreserveRatio(true);
+                layout.getChildren().add(houseIcon);
+            } catch (Exception ex) {
+                System.err.println("[House UI] Companion sprite image parsing error.");
+            }
         }
 
         Text title = new Text("THE LEARNING HOUSE");
@@ -67,11 +86,12 @@ public class House extends StackPane {
         dbBtn.setOnAction(e -> mainApp.showDatabaseRoom());
 
         topicButtons.getChildren().addAll(htmlBtn, cssBtn, dbBtn);
-
         layout.getChildren().addAll(title, topicButtons);
         
-        this.getChildren().addAll(layout, toolbar);
+        // Layer everything cleanly onto the root viewport stack pane
+        this.getChildren().addAll(layout, leftToolbar, toolbar);
         StackPane.setAlignment(toolbar, Pos.TOP_RIGHT);
+        StackPane.setAlignment(leftToolbar, Pos.TOP_LEFT);
     }
 
     private Button createStyledButton(String text, String hexColor) {
@@ -82,7 +102,6 @@ public class House extends StackPane {
                      "-fx-border-color: rgba(255,255,255,0.3); -fx-border-width: 3; -fx-border-radius: 10;");
         btn.setCursor(javafx.scene.Cursor.HAND);
         
-        // Add a slight hover effect to let the user know it is clickable
         btn.setOnMouseEntered(e -> btn.setTranslateY(-4));
         btn.setOnMouseExited(e -> btn.setTranslateY(0));
         

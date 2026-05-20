@@ -33,7 +33,6 @@
             <version>21</version>
             <classifier>win</classifier>
         </dependency>
-
     </dependencies>
 
     <properties>
@@ -41,4 +40,20 @@
         <maven.compiler.release>25</maven.compiler.release>
         <exec.mainClass>bytesizedbeast.codecrawl.AppStarter</exec.mainClass>
     </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>bytesizedbeast.codecrawl.AppStarter</mainClass>
+                    <options>
+                        <option>--enable-native-access=ALL-UNNAMED</option>
+                    </options>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

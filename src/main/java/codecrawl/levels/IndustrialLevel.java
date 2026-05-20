@@ -1,160 +1,212 @@
 package codecrawl.levels;
 
 import codecrawl.core.MainFrame;
-import codecrawl.core.UserSession; // Import session tracking to reward XP updates
+import codecrawl.core.UserSession;
+import codecrawl.engine.MascotManager;
 import codecrawl.ui.MuteButton;
-import codecrawl.ui.NavButton;  // Import standardized confirmation routing
+import codecrawl.ui.NavButton;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Cursor;
-import javafx.scene.control.*;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.SplitPane;
+import javafx.scene.control.TextArea;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
 
-public class IndustrialLevel extends StackPane { // UPGRADED: Inherits from StackPane
-    private TextArea codeEditor;
-    private Label titleLabel;
-    private Label instructionLabel;
-    private Label progressLabel;
-    private StackPane gamePreview;
-    private int currentLevel = 0;
-    private MainFrame mainApp;
+public class IndustrialLevel extends StackPane {
     
-    private final String BG_FACTORY = "#1a1c1e";   
-    private final String HAZARD_ORANGE = "#ff8c00"; 
-    private final String ELECTRIC_BLUE = "#00d4ff"; 
-    private final String STEEL_BORDER = "#454d55";  
+    private final MainFrame mainApp;
+    private TextArea codeEditor;
+    private ImageView mascotView;
+    private Label consoleOutput;
+    
+    private Label dialogueText;
+    private Label hintText;
+    private Label stageTrackerLabel;
+    private int currentStage = 0;
 
-    private final LevelData[] allLevels = {
-        new LevelData("UNIT_01", "SYSTEM_BOOT", "Print 'System Online' to the console. Don't forget the semicolon!", "public class Main {\n    public static void main(String[] args) {\n        \n    }\n}", "System.out.println(\"System Online\");"),
-        new LevelData("UNIT_02", "PRESSURE_VALVE", "Declare an integer variable named 'pressure' and set it to 75.", "", "int pressure = 75;"),
-        new LevelData("UNIT_03", "TEMP_MONITOR", "Declare a double variable named 'temperature' and set it to 98.6.", "", "double temperature = 98.6;"),
-        new LevelData("UNIT_04", "SAFETY_LOCK", "Create a boolean named 'isLocked' and set it to true.", "", "boolean isLocked = true;"),
-        new LevelData("UNIT_05", "SERIAL_ID", "Create a String variable named 'unitID' with the value 'AX-7'.", "", "String unitID = \"AX-7\";"),
-        new LevelData("UNIT_06", "HEATER_LOGIC", "Write an if-statement: if temperature is greater than 100, print 'HOT'.", "if (temperature > 100) {\n    \n}", "System.out.println(\"HOT\");"),
-        new LevelData("UNIT_07", "EMERGENCY_STOP", "Check if pressure is exactly equal to 0 using ==.", "", "pressure == 0"),
-        new LevelData("UNIT_08", "STRESS_TEST", "Check if pressure is less than 50 AND isLocked is false.", "", "pressure < 50 && !isLocked"),
-        new LevelData("UNIT_09", "ASSEMBLY_LINE", "Create a for-loop that runs 5 times.", "", "for(int i = 0; i < 5; i++)"),
-        new LevelData("UNIT_10", "WHILE_ACTIVE", "Create a while-loop that runs as long as isLocked is true.", "", "while(isLocked)"),
-        new LevelData("UNIT_11", "STORAGE_BIN", "Declare an integer array named 'parts' that can hold 5 numbers.", "", "int[] parts = new int[5];"),
-        new LevelData("UNIT_12", "PART_ACCESS", "Assign the value 10 to the first index (0) of the 'parts' array.", "", "parts[0] = 10;"),
-        new LevelData("UNIT_13", "ARRAY_SIZE", "Print the length of the 'parts' array.", "", "parts.length"),
-        new LevelData("UNIT_14", "CORE_METHOD", "Define a public static void method named 'shutdown'.", "", "public static void shutdown()"),
-        new LevelData("UNIT_15", "DATA_RETURN", "Create a method named 'getTemp' that returns a double.", "", "double getTemp()"),
-        new LevelData("UNIT_16", "STRING_COMPARE", "Check if unitID equals 'AX-7' using the .equals() method.", "", "unitID.equals(\"AX-7\")"),
-        new LevelData("UNIT_17", "CLASS_BLUEPRINT", "Create a new class named 'Robot'.", "", "class Robot"),
-        new LevelData("UNIT_18", "OBJECT_GEN", "Create a new Robot object named 'bot1'.", "", "Robot bot1 = new Robot();"),
-        new LevelData("UNIT_19", "CONSTRUCTOR", "Define a constructor for the Robot class.", "class Robot {\n    \n}", "public Robot()"),
-        new LevelData("UNIT_20", "FINAL_ASSEMBLY", "Call the shutdown() method on bot1.", "", "bot1.shutdown();")
+    // --- 10 REFACTORED HIGH-POLISH JAVA FUNDAMENTALS CHALLENGES ---
+    private final ChallengeData[] challenges = {
+        new ChallengeData("Print the phrase 'System Online' to the console in Java.", "Remember to use System.out.println() with a trailing semicolon.", "System.out.println(\"System Online\");"),
+        new ChallengeData("Declare an integer variable named 'pressure' and set it exactly to 75.", "Whole numeric primitives use the primitive initialization keyword 'int'.", "int pressure = 75;"),
+        new ChallengeData("Declare a double-precision floating variable named 'temperature' and set it to 98.6.", "Decimal points parameters require double data allocations.", "double temperature = 98.6;"),
+        new ChallengeData("Create a boolean condition status named 'isLocked' initialized to true.", "Logical state flags use type 'boolean'.", "boolean isLocked = true;"),
+        new ChallengeData("Write a conditional evaluation header checking if 'temperature' breaches value limits of 100.", "Do not write brackets, just provide the condition: if (temperature > 100)", "if(temperature>100)"),
+        new ChallengeData("Write a evaluation block verifying if 'pressure' matches value 0 exactly using comparison signs.", "Equality operations evaluate via two equal symbols: pressure == 0", "pressure==0"),
+        new ChallengeData("Write a while-loop condition header that continues processing as long as 'isLocked' stays true.", "Provide the processing block signature code: while (isLocked)", "while(isLocked)"),
+        new ChallengeData("Declare an integer array data container named 'parts' allocated to hold exactly 5 entries.", "Instantiate structural array arrays: int[] parts = new int[5];", "int[]parts=newint[5];"),
+        new ChallengeData("Define a standard public static void execution member method naming it 'shutdown'.", "Provide method access descriptors: public static void shutdown()", "publicstaticvoidshutdown()"),
+        new ChallengeData("Instantiate a new constructor object tracking instance variable 'bot1' from template class 'Robot'.", "Instantiate new classes nodes loops variables: Robot bot1 = new Robot();", "Robotbot1=newRobot();")
     };
 
     public IndustrialLevel(MainFrame mainApp) {
         this.mainApp = mainApp;
-
-        HBox mainLayout = new HBox(30);
-        mainLayout.setPadding(new Insets(40));
-        mainLayout.setAlignment(Pos.CENTER);
-        mainLayout.setStyle("-fx-background-color: " + BG_FACTORY + ";");
-
-        setupGamePreview();
-        VBox rightSide = setupCodeEditorContainer();
-
-        mainLayout.getChildren().addAll(gamePreview, rightSide);
-        HBox.setHgrow(gamePreview, Priority.ALWAYS);
-        HBox.setHgrow(rightSide, Priority.ALWAYS);
-        
-        // Assemble into root architecture layers
-        this.getChildren().add(mainLayout);
-        
-        loadLevel(currentLevel);
+        setupUI();
+        loadCurrentChallenge();
     }
 
-    private void setupGamePreview() {
-        gamePreview = new StackPane();
-        gamePreview.setStyle("-fx-background-color: #25282b; -fx-border-color: " + STEEL_BORDER + "; -fx-border-width: 6;");
-              
-        // UPGRADED: Direct injection of standardized confirmation NavButton passing 'this' StackPane anchor
-        NavButton backToWorldBtn = new NavButton("← BACK TO WORLD", this, () -> mainApp.showWorldSelection());
-        backToWorldBtn.setStyle("-fx-background-color: " + HAZARD_ORANGE + "; -fx-text-fill: black; -fx-font-family: 'Courier New'; -fx-font-weight: 900; -fx-font-size: 12px; -fx-padding: 8 16;");
-        
-        gamePreview.getChildren().add(backToWorldBtn);
-        StackPane.setAlignment(backToWorldBtn, Pos.BOTTOM_RIGHT);
-        StackPane.setMargin(backToWorldBtn, new Insets(0, 10, 10, 0));
+    private void setupUI() {
+        VBox leftPane = new VBox(15);
+        leftPane.setPadding(new Insets(20));
+        leftPane.setStyle("-fx-background-color: #181a1b;"); 
+        leftPane.setMinWidth(460); 
 
-        Label label = new Label("[ INDUSTRIAL_FEED_01 ]");
-        label.setStyle("-fx-text-fill: " + ELECTRIC_BLUE + "; -fx-font-family: 'Courier New'; -fx-font-weight: bold;");
-        gamePreview.getChildren().add(label);
-        StackPane.setAlignment(label, Pos.TOP_LEFT);
-        StackPane.setMargin(label, new Insets(10));
-    }
+        Label editorLabel = new Label("FACTORY AUTOMATION TERMINAL HUB");
+        editorLabel.setStyle("-fx-text-fill: #ff8c00; -fx-font-weight: bold; -fx-font-size: 18px; -fx-font-family: 'Courier New';");
 
-    private VBox setupCodeEditorContainer() {
-        VBox container = new VBox(15); 
-        container.setMinWidth(600);
-
-        HBox topToolbar = new HBox();
-        topToolbar.setAlignment(Pos.CENTER_RIGHT);
-        MuteButton quickMute = new MuteButton();
-        topToolbar.getChildren().add(quickMute);
-
-        titleLabel = new Label();
-        titleLabel.setStyle("-fx-text-fill: " + HAZARD_ORANGE + "; -fx-font-family: 'Courier New'; -fx-font-size: 28px; -fx-font-weight: 900;");
-        
-        instructionLabel = new Label();
-        instructionLabel.setWrapText(true);
-        instructionLabel.setStyle("-fx-text-fill: #e0e0e0; -fx-font-family: 'Courier New'; -fx-font-size: 15px;");
+        stageTrackerLabel = new Label("STAGE: 1 / 10");
+        stageTrackerLabel.setStyle("-fx-text-fill: #d1d5db; -fx-font-family: 'Courier New'; -fx-font-size: 14px;");
 
         codeEditor = new TextArea();
-        codeEditor.setPrefHeight(400);
-        codeEditor.setStyle("-fx-control-inner-background: #000000; -fx-text-fill: " + ELECTRIC_BLUE + "; -fx-font-family: 'Consolas'; -fx-font-size: 17px; -fx-border-color: " + STEEL_BORDER + "; -fx-border-width: 4;");
+        codeEditor.setPromptText("// Feed compilation industrial firmware automation code blocks here...");
+        codeEditor.setFont(Font.font("Consolas", 16)); 
+        codeEditor.setStyle("-fx-control-inner-background: #090a0a; -fx-text-fill: #00d4ff; -fx-border-color: #374151; -fx-border-width: 2;");
+        VBox.setVgrow(codeEditor, Priority.ALWAYS); 
 
-        Button nextButton = new Button("EXECUTE_COMMAND >");
-        nextButton.setCursor(Cursor.HAND);
-        nextButton.setPrefHeight(60);
-        nextButton.setMaxWidth(Double.MAX_VALUE);
-        nextButton.setStyle("-fx-background-color: " + HAZARD_ORANGE + "; -fx-text-fill: black; -fx-font-family: 'Courier New'; -fx-font-weight: 900; -fx-font-size: 18px; -fx-border-color: #cc7000; -fx-border-width: 0 0 8 0;");
+        Button runButton = new Button("COMPILE LOGIC OPERATIONS FLAG");
+        runButton.setStyle("-fx-background-color: #ff8c00; -fx-text-fill: black; -fx-font-weight: bold; -fx-font-size: 15px; -fx-font-family: 'Courier New'; -fx-cursor: hand;");
+        runButton.setMaxWidth(Double.MAX_VALUE);
+        runButton.setOnAction(e -> evaluateSubmission()); 
         
-        nextButton.setOnAction(e -> {
-            String input = codeEditor.getText();
-            String answerKey = allLevels[currentLevel].correctAnswer;
+        consoleOutput = new Label("Automation network synchronized. Awaiting instruction sequence executions...");
+        consoleOutput.setStyle("-fx-text-fill: #6b7280; -fx-font-family: 'Consolas'; -fx-font-size: 14px;");
+        consoleOutput.setWrapText(true);
 
-            if (input.contains(answerKey)) {
-                // THE REWARD TRACKER: Inject 20 XP safely upon successful evaluations
-                UserSession.addXp(20);
-                
-                currentLevel++;
-                if (currentLevel < allLevels.length) {
-                    loadLevel(currentLevel);
-                } else {
-                    titleLabel.setText("FACTORY_CERTIFIED");
-                    instructionLabel.setText("All industrial core sub-systems fully initialized.");
-                    nextButton.setDisable(true);
-                }
-            } else {
-                instructionLabel.setText("SYNTAX ERROR: Command Rejected. Check your logic.");
-                instructionLabel.setStyle("-fx-text-fill: #ff4444; -fx-font-family: 'Courier New'; -fx-font-size: 15px;");
-            }
-        });
+        leftPane.getChildren().addAll(editorLabel, stageTrackerLabel, codeEditor, runButton, consoleOutput);
 
-        progressLabel = new Label();
-        progressLabel.setStyle("-fx-text-fill: #555c64; -fx-font-family: 'Courier New';");
+        StackPane rightPane = new StackPane();
+        rightPane.setMinWidth(600);
 
-        container.getChildren().addAll(topToolbar, titleLabel, instructionLabel, codeEditor, nextButton, progressLabel);
-        return container;
-    }
-
-    private void loadLevel(int index) {
-        LevelData data = allLevels[index];
-        titleLabel.setText(data.id + ": " + data.name);
-        instructionLabel.setText(data.instruction);
-        instructionLabel.setStyle("-fx-text-fill: #e0e0e0; -fx-font-family: 'Courier New'; -fx-font-size: 15px;");
-        codeEditor.setText(data.startCode);
-        progressLabel.setText("UNIT_PROGRESS: " + (index + 1) + "/" + allLevels.length + " | Lvl " + UserSession.getLevel() + " (" + UserSession.getXp() + "/100 XP)");
-    }
-
-    private static class LevelData {
-        String id, name, instruction, startCode, correctAnswer;
-        LevelData(String i, String n, String ins, String s, String ans) { 
-            id=i; name=n; instruction=ins; startCode=s; correctAnswer=ans; 
+        try {
+            // Links directly to IndustrialLevel.jpg in resources
+            ImageView bgView = new ImageView(new Image(getClass().getResource("/world/IndustrialLevel.jpg").toExternalForm()));
+            bgView.fitWidthProperty().bind(rightPane.widthProperty());
+            bgView.fitHeightProperty().bind(rightPane.heightProperty());
+            rightPane.getChildren().add(bgView);
+        } catch (Exception e) {
+            System.out.println("[FACTORY UI ERROR] Industrial backdrop texture files path mapping lost context connection variables.");
+            rightPane.setStyle("-fx-background-color: #111827;");
         }
+
+        VBox dialogueBubble = new VBox(8);
+        dialogueBubble.setPadding(new Insets(15));
+        dialogueBubble.setMaxWidth(420);
+        dialogueBubble.setStyle("-fx-background-color: rgba(9, 10, 10, 0.94); -fx-background-radius: 12; -fx-border-color: #ff8c00; -fx-border-width: 2.5; -fx-border-radius: 10;");
+        
+        dialogueText = new Label();
+        dialogueText.setWrapText(true);
+        dialogueText.setFont(Font.font("Courier New", FontWeight.BOLD, 15));
+        dialogueText.setTextFill(Color.WHITE);
+
+        hintText = new Label();
+        hintText.setWrapText(true);
+        hintText.setFont(Font.font("Courier New", FontWeight.NORMAL, 13));
+        hintText.setTextFill(Color.web("#00d4ff"));
+
+        dialogueBubble.getChildren().addAll(dialogueText, hintText);
+
+       String mascotPath = MascotManager.getCurrentMascotPath(false); 
+        try {
+            mascotView = new ImageView(new Image(getClass().getResource(mascotPath).toExternalForm()));
+            mascotView.setFitWidth(150);
+            mascotView.setPreserveRatio(true);
+        } catch (Exception e) {
+            System.err.println("[UI WARNING] Mascot asset missing. Using invisible structural placeholder.");
+            mascotView = new ImageView(); // Creates the empty view
+            mascotView.setFitWidth(150);  // Locks the width boundary
+            mascotView.setFitHeight(150); // Locks the height boundary to prop up the dialogue bubble
+        }
+
+        VBox centerCharacterCluster = new VBox(20, dialogueBubble, mascotView);
+        centerCharacterCluster.setAlignment(Pos.CENTER);
+        centerCharacterCluster.setMaxSize(450, 400);
+
+        rightPane.getChildren().add(centerCharacterCluster);
+        StackPane.setAlignment(centerCharacterCluster, Pos.CENTER);
+
+        SplitPane splitPane = new SplitPane();
+        splitPane.getItems().addAll(leftPane, rightPane);
+        splitPane.setDividerPositions(0.38); 
+        
+        NavButton backBtn = new NavButton("← LEAVE SECTOR", this, () -> mainApp.showWorldSelection());
+        HBox toolbar = new HBox(15, backBtn, new MuteButton());
+        toolbar.setAlignment(Pos.CENTER_RIGHT); 
+        toolbar.setPickOnBounds(false); 
+        
+        leftPane.getChildren().add(0, toolbar); 
+        this.getChildren().add(splitPane);
+    }
+
+    private void loadCurrentChallenge() {
+        if (currentStage >= challenges.length) {
+            triggerRoomVictory();
+            return;
+        }
+        ChallengeData challenge = challenges[currentStage];
+        stageTrackerLabel.setText("STAGE PROGRESS: " + (currentStage + 1) + " / " + challenges.length);
+        dialogueText.setText("💬 CORE: " + challenge.prompt);
+        hintText.setText("💡 HINT: " + challenge.hint);
+        codeEditor.clear();
+    }
+
+    private void evaluateSubmission() {
+        if (currentStage >= challenges.length) return;
+
+        String normalizedInput = codeEditor.getText().replaceAll("\\s+", "");
+        String normalizedAnswer = challenges[currentStage].expectedToken.replaceAll("\\s+", "");
+
+        if (normalizedInput.isEmpty()) {
+            consoleOutput.setText("❌ CORE PANIC: Operations processing pipeline cannot verify null code matrices inputs loops.");
+            consoleOutput.setStyle("-fx-text-fill: #ef4444; -fx-font-weight: bold;");
+            return;
+        }
+
+        if (normalizedInput.contains(normalizedAnswer)) {
+            int prevLevel = UserSession.getLevel();
+            UserSession.addXp(5); // Symmetrical 5 XP per problem set match
+            int postLevel = UserSession.getLevel();
+            currentStage++;
+
+            if (postLevel > prevLevel) {
+                refreshMascotVisuals();
+                consoleOutput.setText("⭐ FIRMWARE LEVEL SYNCHRONIZED! Mascot triggered physical structure updates to Level " + postLevel + "!");
+                consoleOutput.setStyle("-fx-text-fill: #ff8c00; -fx-font-weight: bold;");
+            } else {
+                consoleOutput.setText("✔ FIRMWARE INJECTED! Gained +5 XP industrial progression nodes parameters keys.");
+                consoleOutput.setStyle("-fx-text-fill: #34d399; -fx-font-weight: bold;");
+            }
+            loadCurrentChallenge();
+        } else {
+            consoleOutput.setText("❌ CORE REJECTION: Structural loop logic patterns mismatched parameters tracking keys configurations variables.");
+            consoleOutput.setStyle("-fx-text-fill: #ef4444;");
+        }
+    }
+
+    private void refreshMascotVisuals() {
+        try {
+            String updatedPath = MascotManager.getCurrentMascotPath(false);
+            mascotView.setImage(new Image(getClass().getResource(updatedPath).toExternalForm()));
+        } catch (Exception e) {
+            System.err.println("Firmware visual adjustment exception tracing: " + e.getMessage());
+        }
+    }
+
+    private void triggerRoomVictory() {
+        dialogueText.setText("🎉 CIRCUITS LOADED! Industrial computing logic processors fully operational!");
+        hintText.setText("Mainframe evaluation loop trace complete. Return safely back to command base hubs mapping coordinates.");
+        codeEditor.setDisable(true);
+        stageTrackerLabel.setText("COMPLETED 10 / 10");
+        consoleOutput.setText("SUCCESS: Hardware automation zone entirely clear. Exit links fully responsive.");
+        consoleOutput.setStyle("-fx-text-fill: #ff8c00; -fx-font-weight: bold;");
+    }
+
+    private static class ChallengeData {
+        final String prompt, hint, expectedToken;
+        ChallengeData(String p, String h, String e) { prompt = p; hint = h; expectedToken = e; }
     }
 }

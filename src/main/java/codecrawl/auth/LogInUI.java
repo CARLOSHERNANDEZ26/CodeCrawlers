@@ -1,7 +1,10 @@
 package codecrawl.auth;
 
 import codecrawl.auth.AuthService;
-import java.util.prefs.Preferences; // Restored Import
+import codecrawl.core.UserSession;
+import codecrawl.db.Database;
+import codecrawl.engine.AudioManager; // Added import for audio management
+import java.util.prefs.Preferences;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -10,6 +13,7 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import java.sql.*;
 
 public class LogInUI extends StackPane {
     private VBox formBox;
@@ -20,7 +24,8 @@ public class LogInUI extends StackPane {
     private Button actionBtn;
     private Hyperlink toggleLink, forgotLink;
     private StackPane confirmPassStack;
-    private CheckBox rememberMeBox; // Restored CheckBox object
+    private CheckBox rememberMeBox; 
+    private Button muteBtn; // Reference stored to change text dynamically
     
     private boolean isLoginMode = true;
     private Runnable onSuccess;
@@ -84,11 +89,9 @@ public class LogInUI extends StackPane {
         CheckBox showPassBox = new CheckBox("Show password");
         showPassBox.setTextFill(Color.WHITE);
         
-        // RESTORED: REMEMBER ME CHECKBOX FIELD
         rememberMeBox = new CheckBox("Remember Me");
         rememberMeBox.setTextFill(Color.WHITE);
         
-        // RESTORED: LOAD CACHED USER DETAILS IF REMEMBER ME OPTION STAYS CHECKED
         Preferences prefs = Preferences.userNodeForPackage(LogInUI.class);
         String savedUser = prefs.get("username", "");
         String savedPass = prefs.get("password", "");
@@ -123,9 +126,36 @@ public class LogInUI extends StackPane {
                                      passStack, confirmPassStack, optionsRow, errorLabel, 
                                      actionBtn, toggleLink, bottomSpacer);
         
-        this.getChildren().addAll(bgView, formBox);
+        // ══════════════════════════════════════════════════════════════════════
+        // NEW: FLOATING TOP-RIGHT AUDIO TOOLBAR CONTAINER
+        // ══════════════════════════════════════════════════════════════════════
+        muteBtn = new Button();
+        updateMuteButtonText(); // Set text dynamically on load
+        muteBtn.setStyle("-fx-background-color: rgba(30, 47, 30, 0.85); -fx-text-fill: #ffcc00; -fx-font-weight: bold; -fx-font-size: 14px; -fx-border-color: #ffcc00; -fx-border-radius: 8px; -fx-background-radius: 8px; -fx-cursor: hand; -fx-padding: 10px 20px;");
+        
+        muteBtn.setOnAction(e -> {
+            AudioManager.toggleMusic(); // Direct safe memory-deallocation call
+            updateMuteButtonText();    // Toggle indicator visually
+        });
+
+        HBox topToolbar = new HBox(muteBtn);
+        topToolbar.setAlignment(Pos.TOP_RIGHT);
+        topToolbar.setPadding(new Insets(20));
+        topToolbar.setPickOnBounds(false); // Invisible shield fix
+
+        // Assemble all root display frames onto the main container stack
+        this.getChildren().addAll(bgView, formBox, topToolbar);
+        StackPane.setAlignment(topToolbar, Pos.TOP_RIGHT);
 
         initActions(auth, showPassBox);
+    }
+
+    private void updateMuteButtonText() {
+        if (AudioManager.isPlaying) {
+            muteBtn.setText("🎵 Music: ON");
+        } else {
+            muteBtn.setText("🔇 Music: OFF");
+        }
     }
 
     private void initActions(AuthService auth, CheckBox showPassBox) {
@@ -148,7 +178,7 @@ public class LogInUI extends StackPane {
             userField.setPromptText(isLoginMode ? "Username/Email" : "Username");
             emailField.setVisible(!isLoginMode); emailField.setManaged(!isLoginMode);
             confirmPassStack.setVisible(!isLoginMode); confirmPassStack.setManaged(!isLoginMode);
-            rememberMeBox.setVisible(isLoginMode); // Only show on log in view panel
+            rememberMeBox.setVisible(isLoginMode); 
             errorLabel.setText("");
         });
 
@@ -164,7 +194,24 @@ public class LogInUI extends StackPane {
             if (isLoginMode) {
                 String result = auth.loginDual(input, pass);
                 if ("SUCCESS".equals(result)) {
-                    // RESTORED: SERIALIZE CREDENTIALS DEPENDING ON REMEMBER ME TOGGLE
+                    try (Connection conn = Database.connect();
+                         PreparedStatement ps = conn != null ? conn.prepareStatement("SELECT id, username FROM users WHERE username = ? OR email = ?") : null) {
+                        
+                        if (ps != null) {
+                            ps.setString(1, input);
+                            ps.setString(2, input);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                if (rs.next()) {
+                                    UserSession.setUserId(rs.getInt("id"));
+                                    UserSession.setUsername(rs.getString("username"));
+                                    System.out.println("[SESSION BOUND] Successfully logged in as: " + UserSession.getUsername() + " (ID: " + UserSession.getUserId() + ")");
+                                }
+                            }
+                        }
+                    } catch (SQLException ex) {
+                        System.err.println("[SESSION BIND ERROR] Failed linking user context details: " + ex.getMessage());
+                    }
+
                     Preferences prefs = Preferences.userNodeForPackage(LogInUI.class);
                     if (rememberMeBox.isSelected()) {
                         prefs.put("username", input);

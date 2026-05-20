@@ -4,8 +4,9 @@ import codecrawl.db.Database;
 import java.sql.*;
 
 public class UserSession {
-    private static int userId = 1;
-    private static String username = "Player1";
+    // CHANGE THESE TWO LINES TO DEFAULT TO AN INVALID STATE:
+    private static int userId = -1;       // Fix: Prevents accidental boot overwrites
+    private static String username = "";  // Fix: Starts clean
     private static int xp = 0;
     private static int level = 1;
     private static String selectedMascot = "snake";
@@ -91,4 +92,25 @@ public class UserSession {
         level = 1;
         selectedMascot = "snake";
     }
+    
+    public static void logLevelCompletion(int levelId, int score) {
+    if (userId <= 0) return;
+
+    String sql = "INSERT INTO user_progress (user_id, level_id, score) VALUES (?, ?, ?) " +
+                 "ON DUPLICATE KEY UPDATE score = GREATER(score, ?)";
+    
+    try (Connection conn = codecrawl.db.Database.connect();
+         PreparedStatement ps = conn != null ? conn.prepareStatement(sql) : null) {
+        
+        if (ps == null) return;
+        ps.setInt(1, userId);
+        ps.setInt(2, levelId);
+        ps.setInt(3, score);
+        ps.setInt(4, score); // Updates the score if they replay the level and do better
+        ps.executeUpdate();
+        System.out.println("[DB LOG] Level submission logged in user_progress table.");
+    } catch (SQLException ex) {
+        System.err.println("[DB ERROR] Failed to log level progress: " + ex.getMessage());
+    }
+}
 }

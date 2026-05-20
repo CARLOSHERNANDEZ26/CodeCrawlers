@@ -9,7 +9,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
+import javafx.scene.control.CheckBox; 
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.image.Image;
@@ -28,7 +28,7 @@ public class HomeScreen extends StackPane {
     public HomeScreen(MainFrame mainApp) {
         this.mainApp = mainApp;
         ensureUsersTableExists();
-        UserSession.loadFromDatabase(); 
+        UserSession.loadFromDatabase(); // Pull fresh level data immediately on load
         setupBackground();
         buildUI();
     }
@@ -50,7 +50,7 @@ public class HomeScreen extends StackPane {
              Statement stmt = conn.createStatement()) {
             if (conn != null) stmt.execute(ddl);
         } catch (SQLException ex) {
-            System.err.println("[HomeScreen] Schema alignment check failure: " + ex.getMessage());
+            System.err.println("[HomeScreen DB] Initialization check failure: " + ex.getMessage());
         }
     }
 
@@ -70,11 +70,12 @@ public class HomeScreen extends StackPane {
         AnchorPane uiLayer = new AnchorPane();
         uiLayer.setPadding(new Insets(30));
 
+        // ─── UPGRADED: DYNAMIC PROFILE TEXT BADGE ───
         String username = UserSession.getUsername() != null ? UserSession.getUsername() : "RoneloLolz";
-        int level = UserSession.getLevel();
-        int xp = UserSession.getXp();
+        int currentLevel = UserSession.getLevel();
+        int currentXp = UserSession.getXp();
         
-        Label playerBadge = new Label("👤 " + username + " | Lvl " + level + " (" + xp + "/100 XP)");
+        Label playerBadge = new Label("👤 " + username + " | Lvl " + currentLevel + " (" + currentXp + "/100 XP)");
         playerBadge.setStyle("-fx-background-color: rgba(0,0,0,0.75); -fx-text-fill: white; -fx-padding: 10 20; -fx-background-radius: 20; -fx-border-color: #a2db4e; -fx-border-width: 1.5; -fx-border-radius: 20;");
         playerBadge.setFont(Font.font("Arial", FontWeight.BOLD, 15));
         
@@ -84,6 +85,9 @@ public class HomeScreen extends StackPane {
         Button settingsBtn = new Button("⚙ Settings");
         settingsBtn.setStyle("-fx-background-color: rgba(0,0,0,0.65); -fx-text-fill: white; -fx-padding: 10 20; -fx-background-radius: 20; -fx-border-color: #a2db4e; -fx-border-radius: 20; -fx-border-width: 1.5; -fx-cursor: hand;");
         settingsBtn.setFont(Font.font("Arial", FontWeight.BOLD, 15));
+        
+        settingsBtn.setOnMouseEntered(e -> settingsBtn.setStyle("-fx-background-color: rgba(40,80,20,0.85); -fx-text-fill: white; -fx-padding: 10 20; -fx-background-radius: 20; -fx-border-color: #b4ec5b; -fx-border-radius: 20; -fx-border-width: 1.5; -fx-cursor: hand;"));
+        settingsBtn.setOnMouseExited(e -> settingsBtn.setStyle("-fx-background-color: rgba(0,0,0,0.65); -fx-text-fill: white; -fx-padding: 10 20; -fx-background-radius: 20; -fx-border-color: #a2db4e; -fx-border-radius: 20; -fx-border-width: 1.5; -fx-cursor: hand;"));
         settingsBtn.setOnAction(e -> showSettingsOverlay());
 
         AnchorPane.setTopAnchor(settingsBtn, 15.0);
@@ -98,6 +102,12 @@ public class HomeScreen extends StackPane {
             playImg.setFitWidth(275); 
             playImg.setPreserveRatio(true);
             playImg.setCursor(javafx.scene.Cursor.HAND);
+            
+            playImg.setOnMouseEntered(e -> { playImg.setScaleX(1.05); playImg.setScaleY(1.05); });
+            playImg.setOnMouseExited(e -> { playImg.setScaleX(1.0); playImg.setScaleY(1.0); });
+            playImg.setOnMousePressed(e -> playImg.setTranslateY(4));
+            playImg.setOnMouseReleased(e -> playImg.setTranslateY(0));
+            
             playImg.setOnMouseClicked(e -> mainApp.showWorldSelection());
             playBtn = playImg;
         } catch (Exception e) {
@@ -115,7 +125,7 @@ public class HomeScreen extends StackPane {
         Button profileBtn = createMenuButton("👤  Profile");
         profileBtn.setOnAction(e -> mainApp.showProfileScreen()); 
 
-        // --- UPDATED: EXIT BUTTON WITH CONFIRMATION SYSTEM ---
+        // ─── UPGRADED: ACTION DISPATCHES OVERLAY CONFIRMATION ───
         Button exitBtn = createMenuButton("✖  Exit");
         exitBtn.setOnAction(e -> showExitConfirmationOverlay());
 
@@ -128,9 +138,6 @@ public class HomeScreen extends StackPane {
         this.getChildren().add(uiLayer);
     }
 
-    // ══════════════════════════════════════════════════════════════════════
-    // NEW: APPLICATION EXIT CONFIRMATION MODAL
-    // ══════════════════════════════════════════════════════════════════════
     private void showExitConfirmationOverlay() {
         VBox card = new VBox(20);
         card.setAlignment(Pos.CENTER);
@@ -146,7 +153,6 @@ public class HomeScreen extends StackPane {
         title.setTextFill(Color.WHITE);
         title.setFont(Font.font("Courier New", FontWeight.BOLD, 18));
 
-        // Choice Action Triggers
         Button saveLeaveBtn = new Button("💾 SAVE & QUIT");
         saveLeaveBtn.setStyle("-fx-background-color: #16a34a; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand; -fx-padding: 10 15; -fx-background-radius: 6;");
         
@@ -181,13 +187,8 @@ public class HomeScreen extends StackPane {
         cancelBtn.setOnAction(e -> dismiss.run());
         overlay.setOnMouseClicked(e -> { if (e.getTarget() == overlay) dismiss.run(); });
 
-        justLeaveBtn.setOnAction(e -> {
-            System.out.println("[EXIT LOG] Shutting down immediately without state saving.");
-            System.exit(0);
-        });
-
+        justLeaveBtn.setOnAction(e -> System.exit(0));
         saveLeaveBtn.setOnAction(e -> {
-            System.out.println("[EXIT LOG] Syncing system progress states before safe shutdown.");
             UserSession.saveToDatabase(); 
             System.exit(0);
         });
@@ -216,12 +217,14 @@ public class HomeScreen extends StackPane {
 
         Slider volSlider = new Slider(0, 100, 70); 
         volSlider.setStyle("-fx-control-inner-background: #2a5212;");
-        volSlider.valueProperty().addListener((obs, oldVal, newVal) -> AudioManager.setVolume(newVal.doubleValue() / 100.0));
+        volSlider.valueProperty().addListener((obs, oldVal, newVal) -> {
+            AudioManager.setVolume(newVal.doubleValue() / 100.0);
+        });
 
         Button logoutBtn = new Button("🚪 Log Out");
         logoutBtn.setStyle("-fx-background-color: #cc2222; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 8px; -fx-cursor: hand; -fx-padding: 12 25; -fx-font-size: 14px;");
         logoutBtn.setOnAction(e -> {
-            UserSession.saveToDatabase(); 
+            UserSession.saveToDatabase(); // Save profile progress state cleanly on disconnect
             UserSession.clear();
             mainApp.showLoginScreen();
         });
@@ -248,8 +251,17 @@ public class HomeScreen extends StackPane {
         Button btn = new Button(text);
         btn.setPrefSize(275, 62); 
         btn.setFont(Font.font("Arial", FontWeight.BOLD, 22));
-        String normalStyle = "-fx-background-color: linear-gradient(to bottom, #a2db4e, #53a62b); -fx-background-radius: 12; -fx-border-color: #2a5212; -fx-border-width: 3.5; -fx-border-radius: 9; -fx-text-fill: white; -fx-cursor: hand;";
+        
+        String normalStyle = "-fx-background-color: linear-gradient(to bottom, #a2db4e, #53a62b); -fx-background-radius: 12; -fx-border-color: #2a5212; -fx-border-width: 3.5; -fx-border-radius: 9; -fx-text-fill: white; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 4, 0.0, 0, 3);";
+        String hoverStyle = "-fx-background-color: linear-gradient(to bottom, #b4ec5b, #62bf33); -fx-background-radius: 12; -fx-border-color: #2a5212; -fx-border-width: 3.5; -fx-border-radius: 9; -fx-text-fill: white; -fx-cursor: hand; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.7), 6, 0.0, 0, 4);";
+
         btn.setStyle(normalStyle);
+        btn.setOnMouseEntered(e -> btn.setStyle(hoverStyle));
+        btn.setOnMouseExited(e -> btn.setStyle(normalStyle));
+        
+        btn.setOnMousePressed(e -> btn.setTranslateY(3));
+        btn.setOnMouseReleased(e -> btn.setTranslateY(0));
+        
         return btn;
     }
 }
