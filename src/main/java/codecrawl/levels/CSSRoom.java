@@ -49,15 +49,11 @@ public class CSSRoom extends StackPane {
         loadCurrentChallenge();
     }
 
-   private void setupUI() {
+    private void setupUI() {
         VBox leftPane = new VBox(15);
         leftPane.setPadding(new Insets(20));
         leftPane.setStyle("-fx-background-color: #1e1e2e;"); 
-        
-        // Let the left pane have a normal flexible width, but never shrink too small
-        leftPane.setMinWidth(350); 
-        leftPane.setPrefWidth(420);
-        leftPane.setMaxWidth(500);
+        leftPane.setMinWidth(460); 
 
         Label editorLabel = new Label("STYLING TERMINAL - CSS_CORE");
         editorLabel.setStyle("-fx-text-fill: #6366f1; -fx-font-weight: bold; -fx-font-size: 18px; -fx-font-family: 'Courier New';");
@@ -83,16 +79,20 @@ public class CSSRoom extends StackPane {
         leftPane.getChildren().addAll(editorLabel, stageTrackerLabel, codeEditor, runButton, consoleOutput);
 
         StackPane rightPane = new StackPane();
-        
-        // Now that SplitPane stops the layout freeze, we can safely use CSS cover on the right pane
+        rightPane.setMinWidth(600);
+
         try {
-            String bgUrl = getClass().getResource("/world/CSSroom.png").toExternalForm();
-            rightPane.setStyle("-fx-background-image: url('" + bgUrl + "'); " +
-                               "-fx-background-size: cover; " +
-                               "-fx-background-position: center; " +
-                               "-fx-background-repeat: no-repeat;");
+            // Force downsampling to a standard 1280x720 frame to fix GPU/Prism compilation errors
+            Image img = new Image(getClass().getResource("/world/CSSroom.png").toExternalForm(), 1280, 720, false, true);
+            if (img.isError()) {
+                throw new Exception(img.getException());
+            }
+            ImageView bgView = new ImageView(img);
+            bgView.fitWidthProperty().bind(rightPane.widthProperty());
+            bgView.fitHeightProperty().bind(rightPane.heightProperty());
+            rightPane.getChildren().add(bgView);
         } catch (Exception e) {
-            System.out.println("[CSS UI ERROR] Native layout background string failed to compile. Using solid fallback.");
+            System.out.println("[CSS UI ERROR] Native layout background asset failed initialization. Using solid fallback.");
             rightPane.setStyle("-fx-background-color: #181825;");
         }
 
@@ -133,10 +133,7 @@ public class CSSRoom extends StackPane {
 
         SplitPane splitPane = new SplitPane();
         splitPane.getItems().addAll(leftPane, rightPane);
-        splitPane.setDividerPositions(0.40); 
-        
-        // Prevent the left terminal pane from being crushed when window resizes
-        SplitPane.setResizableWithParent(leftPane, false);
+        splitPane.setDividerPositions(0.38); 
         
         NavButton backBtn = new NavButton("← LEAVE ROOM", this, () -> mainApp.showHouse());
         HBox toolbar = new HBox(15, backBtn, new MuteButton());

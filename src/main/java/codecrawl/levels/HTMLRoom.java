@@ -53,11 +53,7 @@ public class HTMLRoom extends StackPane {
         VBox leftPane = new VBox(15);
         leftPane.setPadding(new Insets(20));
         leftPane.setStyle("-fx-background-color: #22252a;"); 
-        
-        // Flexible bounds prevent it from being crushed out of existence
-        leftPane.setMinWidth(350); 
-        leftPane.setPrefWidth(420);
-        leftPane.setMaxWidth(500);
+        leftPane.setMinWidth(460); 
 
         Label editorLabel = new Label("CODE TERMINAL - HTML STRUCT");
         editorLabel.setStyle("-fx-text-fill: #38bdf8; -fx-font-weight: bold; -fx-font-size: 18px; -fx-font-family: 'Courier New';");
@@ -83,16 +79,20 @@ public class HTMLRoom extends StackPane {
         leftPane.getChildren().addAll(editorLabel, stageTrackerLabel, codeEditor, runButton, consoleOutput);
 
         StackPane rightPane = new StackPane();
+        rightPane.setMinWidth(600);
 
-        // Safely map the background image via CSS since the SplitPane protects the layout
         try {
-            String bgUrl = getClass().getResource("/world/HTMLroom.png").toExternalForm();
-            rightPane.setStyle("-fx-background-image: url('" + bgUrl + "'); " +
-                               "-fx-background-size: cover; " +
-                               "-fx-background-position: center; " +
-                               "-fx-background-repeat: no-repeat;");
+            // Force downsampling to a standard 1280x720 frame to fix GPU/Prism compilation errors
+            Image img = new Image(getClass().getResource("/world/HTMLroom.png").toExternalForm(), 1280, 720, false, true);
+            if (img.isError()) {
+                throw new Exception(img.getException());
+            }
+            ImageView bgView = new ImageView(img);
+            bgView.fitWidthProperty().bind(rightPane.widthProperty());
+            bgView.fitHeightProperty().bind(rightPane.heightProperty());
+            rightPane.getChildren().add(bgView);
         } catch (Exception e) {
-            System.out.println("[HTML UI ERROR] Missing room asset background map pointer context.");
+            System.out.println("[HTML UI ERROR] Missing room asset background map pointer context. Using solid fallback.");
             rightPane.setStyle("-fx-background-color: #0b0f19;");
         }
 
@@ -133,10 +133,7 @@ public class HTMLRoom extends StackPane {
 
         SplitPane splitPane = new SplitPane();
         splitPane.getItems().addAll(leftPane, rightPane);
-        splitPane.setDividerPositions(0.40); 
-        
-        // Lock the left pane's resize behavior so it doesn't get squished
-        SplitPane.setResizableWithParent(leftPane, false);
+        splitPane.setDividerPositions(0.38); 
         
         NavButton backBtn = new NavButton("← LEAVE ROOM", this, () -> mainApp.showHouse());
         HBox toolbar = new HBox(15, backBtn, new MuteButton());
